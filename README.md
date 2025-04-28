@@ -43,8 +43,10 @@ docker compose up
 
 This will:
   - Create an `example.com` domain in Stalwart's Directory
-  - Create a `root@example.com` account in Stalwart's Directory
+  - Create a `postmaster@example.com` account in Stalwart's Directory
   - Set a password `password` for the `root@example.com` account
+  - Create a `user@example.com` account in Stalwart's Directory
+  - Set a password `password` for the `user@example.com` account
   - Remove rate limits for demonstration
   - Reload Stalwart Mail Server's configuration
 
