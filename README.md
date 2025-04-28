@@ -39,6 +39,19 @@ cd stalwart-mailman
 docker compose up
 ```
 
+* Inititialize Stalwart
+
+This will:
+  - Create an `example.com` domain in Stalwart's Directory
+  - Create a `root@example.com` account in Stalwart's Directory
+  - Set a password `password` for the `root@example.com` account
+  - Remove rate limits for demonstration
+  - Reload Stalwart Mail Server's configuration
+
+```
+docker compose exec mailman-web ./init-stalwart.sh
+```
+
 * Load Fixtures
 
 This will setup:
@@ -57,6 +70,15 @@ docker compose exec mailman-web python manage.py loaddata fixtures.json
 
 ```
 open http://localhost:8000/accounts/login/
+```
+
+* Initialize Mailman Core
+
+This will setup:
+  - A domain in Mailman Core to match the fixture
+
+```
+docker compose exec mailman-web ./init-mailman-core.sh
 ```
 
 
