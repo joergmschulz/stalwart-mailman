@@ -1,0 +1,3 @@
+[submodule "docker-mailman"]
+	path = docker-mailman
+	url = https://github.com/maxking/docker-mailman.git

@@ -1,0 +1,113 @@
+volumes:
+  mailman-core:
+  mailman-web:
+  stalwart:
+  postgres:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.168.123.0/24
+
+services:
+  mailman-core:
+    build:
+      context: docker-mailman/core
+      dockerfile: Dockerfile
+    container_name: mailman-core
+    hostname: mailman-core
+    restart: unless-stopped
+    volumes:
+    - mailman-core:/opt/mailman/
+    - ./mailman.cfg:/opt/mailman/mailman-extra.cfg
+    - ./stalwart.cfg:/etc/stalwart.cfg
+    - ./mailman_stalwart/:/usr/lib/python3.12/site-packages/mailman_stalwart/
+    stop_grace_period: 30s
+    networks:
+      default:
+        ipv4_address: 172.168.123.10
+    links:
+    - database:database
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+    - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
+    - DATABASE_TYPE=postgres
+    - DATABASE_CLASS=mailman.database.postgresql.PostgreSQLDatabase
+    - SECRET_KEY=ksjdbaksdba
+    - HYPERKITTY_API_KEY=someapikey
+    ports:
+    - "127.0.0.1:8001:8001" # API
+    - "127.0.0.1:8024:8024" # LMTP - incoming emails
+
+  mailman-web:
+    build:
+      context: docker-mailman/web
+      dockerfile: Dockerfile
+    container_name: mailman-web
+    hostname: mailman-web
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 172.168.123.20
+    links:
+    - mailman-core:mailman-core
+    - database:database
+    volumes:
+    - mailman-web:/opt/mailman-web-data
+    environment:
+    - DATABASE_TYPE=postgres
+    - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
+    - UWSGI_STATIC_MAP=/static=/opt/mailman-web-data/static
+    - SECRET_KEY=ksjdbaksdba
+    - HYPERKITTY_API_KEY=someapikey
+    ports:
+    - "127.0.0.1:8000:8000" # HTTP
+    - "127.0.0.1:8080:8080" # uwsgi
+
+  mail-server:
+    environment:
+      - STALWART_PATH=/opt/stalwart-mail
+    ports:
+      - '443:443'
+      - '8081:8080'
+      - '25:25'
+      - '587:587'
+      - '465:465'
+      - '143:143'
+      - '993:993'
+      - '4190:4190'
+      - '110:110'
+      - '995:995'
+    networks:
+      default:
+        ipv4_address: 172.168.123.30
+    links:
+    - mailman-core:mailman-core
+    volumes:
+      - ./stalwart.toml:/opt/stalwart-mail/etc/config.toml
+      - stalwart:/opt/stalwart-mail
+    container_name: stalwart-mail
+    image: 'stalwartlabs/mail-server:latest'
+
+  database:
+    environment:
+    - POSTGRES_DB=mailmandb
+    - POSTGRES_USER=mailman
+    - POSTGRES_PASSWORD=mailmanpass
+    image: postgres:12-alpine
+    networks:
+      default:
+        ipv4_address: 172.168.123.40
+    volumes:
+    - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --dbname mailmandb --username mailman"]
+      interval: 1s
+      timeout: 1s
+      retries: 20
