@@ -1,0 +1,62 @@
+[
+{
+    "model": "hyperkitty.profile",
+    "pk": 1,
+    "fields": {
+        "user": 1,
+        "karma": 1
+    }
+},
+{
+    "model": "django_mailman3.profile",
+    "pk": 1,
+    "fields": {
+        "user": 1,
+        "timezone": ""
+    }
+},
+{
+    "model": "django_mailman3.maildomain",
+    "pk": 1,
+    "fields": {
+        "site": 1,
+        "mail_domain": "example.com"
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+        "password": "pbkdf2_sha256$600000$T73Zkhow73WJH4IrZq25ba$qXrgxYTYylUtQk6Jq/1iF3gWmznSyFJEhpZwcTpxO6M=",
+        "last_login": "2025-04-28T15:15:48.097Z",
+        "is_superuser": true,
+        "username": "root",
+        "first_name": "",
+        "last_name": "",
+        "email": "root@example.com",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2025-04-28T15:14:14.818Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "sites.site",
+    "pk": 1,
+    "fields": {
+        "domain": "example.com",
+        "name": "Example Mailing Lists"
+    }
+},
+{
+    "model": "account.emailaddress",
+    "pk": 1,
+    "fields": {
+        "user": 1,
+        "email": "root@example.com",
+        "verified": true,
+        "primary": true
+    }
+}
+]

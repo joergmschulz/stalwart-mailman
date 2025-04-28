@@ -60,6 +60,7 @@ services:
     - database:database
     volumes:
     - mailman-web:/opt/mailman-web-data
+    - ./fixtures.json:/opt/mailman-web/fixtures.json
     environment:
     - DATABASE_TYPE=postgres
     - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
