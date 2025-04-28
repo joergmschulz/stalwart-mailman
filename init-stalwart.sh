@@ -10,12 +10,24 @@ curl \
   --user admin:password \
   -XPOST \
   http://mail-server:8080/api/principal \
-  --data '{"type": "individual", "name": "root@example.com", "description": "postmaster"}'
+  --data '{"type": "individual", "name": "postmaster@example.com", "emails": ["postmaster@example.com", "root@example.com"], "description": "postmaster", "quota": 0, "roles":["user"]}'
 
 curl \
   --user admin:password \
   -XPATCH \
-  http://mail-server:8080/api/principal/root%40example.com \
+  http://mail-server:8080/api/principal/postmaster%40example.com \
+  --data '[{"action":"addItem","field":"secrets","value":"$6$ygS2f7mNlvvzeakW$KS/r6LWMlSWzT7Pi8uv2iGqK2E5npnPHd/41xW3qxYWNGbrSKGwSwjmhc7wTplolqjuM40TKH.8thwJ8rqXfi1"}]'
+
+curl \
+  --user admin:password \
+  -XPOST \
+  http://mail-server:8080/api/principal \
+  --data '{"type": "individual", "name": "user@example.com", "emails": ["user@example.com"], "description": "Example Youzer", "quota": 0, "roles":["user"]}'
+
+curl \
+  --user admin:password \
+  -XPATCH \
+  http://mail-server:8080/api/principal/user%40example.com \
   --data '[{"action":"addItem","field":"secrets","value":"$6$ygS2f7mNlvvzeakW$KS/r6LWMlSWzT7Pi8uv2iGqK2E5npnPHd/41xW3qxYWNGbrSKGwSwjmhc7wTplolqjuM40TKH.8thwJ8rqXfi1"}]'
 
 curl \
