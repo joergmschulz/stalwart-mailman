@@ -23,8 +23,8 @@ tempfail-on-error = true
 max-response-size = 52428800
 
 [session.hook."mailman".auth]
-username = "restpass"
-secret = "restadmin"
+username = "restadmin"
+secret = "restpass"
 
 [authentication.fallback-admin]
 user = "admin"
