@@ -13,6 +13,12 @@ This integration is constructed of a
 for creating the necessary domains/accounts/routing in Stalwart Mail Server and a
 [mailman hook plugin](mailman_stalwart/rest.py) implementing a
 [Stalwart MTA Hook](https://stalw.art/docs/api/mta-hooks/overview).
+## changes by js
+- use most current stalwart repository
+- move credentials, passwords, domain names to .env
+### networking
+- hide public services behind traefik
+- leave internal services internal 
 
 ## Getting started
 

@@ -5,112 +5,215 @@ volumes:
   postgres:
 
 networks:
-  default:
-    ipam:
-      config:
-        - subnet: 172.168.123.0/24
+  traefik:
+    external: true
+  services: 
+    external: true
 
 services:
   mailman-core:
-    build:
-      context: docker-mailman/core
-      dockerfile: Dockerfile
+    image: maxking/mailman-core:rolling
     container_name: mailman-core
-    hostname: mailman-core
+    hostname: mailman-core.${DOMAIN}
     restart: unless-stopped
     volumes:
-    - mailman-core:/opt/mailman/
-    - ./mailman.cfg:/opt/mailman/mailman-extra.cfg
-    - ./stalwart.cfg:/etc/stalwart.cfg
-    - ./mailman_stalwart/:/usr/lib/python3.12/site-packages/mailman_stalwart/
+      - mailman-core:/opt/mailman/
+      - ./mailman.cfg:/opt/mailman/mailman-extra.cfg
+      - ./stalwart.cfg:/etc/stalwart.cfg
+      - ./mailman_stalwart/:/usr/lib/python3.12/site-packages/mailman_stalwart/
     stop_grace_period: 30s
     networks:
-      default:
-        ipv4_address: 172.168.123.10
-    links:
-    - database:database
+      services:
+        ipv4_address: ${MM3_CORE_IP}
     depends_on:
-      database:
+      mm3-db:
         condition: service_healthy
     environment:
-    - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
-    - DATABASE_TYPE=postgres
-    - DATABASE_CLASS=mailman.database.postgresql.PostgreSQLDatabase
-    - SECRET_KEY=ksjdbaksdba
-    - HYPERKITTY_API_KEY=someapikey
-    ports:
-    - "127.0.0.1:8001:8001" # API
-    - "127.0.0.1:8024:8024" # LMTP - incoming emails
+      - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
+      - DATABASE_TYPE=postgres
+      - DATABASE_CLASS=mailman.database.postgresql.PostgreSQLDatabase
+      - SECRET_KEY=ksjdbaksdba
+      - HYPERKITTY_API_KEY=${MM3_HYPERKITTY_API_KEY}
+    #ports:
+    #- "127.0.0.1:8001:8001" # API
+    #- "127.0.0.1:8024:8024" # LMTP - incoming emails
 
   mailman-web:
-    build:
-      context: docker-mailman/web
-      dockerfile: Dockerfile
+    image: maxking/mailman-web:rolling
     container_name: mailman-web
     hostname: mailman-web
-    restart: unless-stopped
     depends_on:
-      database:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 172.168.123.20
+       - mm3-db
     links:
-    - mailman-core:mailman-core
-    - database:database
+      - mailman-core:mailman-core
     volumes:
-    - mailman-web:/opt/mailman-web-data
-    - ./init-mailman-core.sh:/opt/mailman-web/init-mailman-core.sh
-    - ./init-stalwart.sh:/opt/mailman-web/init-stalwart.sh
-    - ./fixtures.json:/opt/mailman-web/fixtures.json
+      - ${MM3_WEB_DIR}:/opt/mailman-web-data
+      - /etc/localtime:/etc/localtime:ro
     environment:
-    - DATABASE_TYPE=postgres
-    - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
-    - UWSGI_STATIC_MAP=/static=/opt/mailman-web-data/static
-    - SECRET_KEY=ksjdbaksdba
-    - HYPERKITTY_API_KEY=someapikey
-    ports:
-    - "127.0.0.1:8000:8000" # HTTP
-    - "127.0.0.1:8080:8080" # uwsgi
-
-  mail-server:
-    environment:
-      - STALWART_PATH=/opt/stalwart-mail
-    ports:
-      - '443:443'
-      - '8081:8080'
-      - '25:25'
-      - '587:587'
-      - '465:465'
-      - '143:143'
-      - '993:993'
-      - '4190:4190'
-      - '110:110'
-      - '995:995'
+      - TIMEZONE=Europe/Berlin
+      - DATABASE_TYPE=postgres
+      - DATABASE_URL=${MM3_WEB_DATABASE_URL}
+      - HYPERKITTY_API_KEY=${MM3_HYPERKITTY_API_KEY}
+      - UWSGI_STATIC_MAP=/static=/opt/mailman-web-data/static
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${MM3_SMTP_PORT}
+      - SMTP_HOST_USER=${SMTP_USER}
+      - SMTP_HOST_PASSWORD=${LDAP_SMTP_PASSWORD}
+      - SECRET_KEY=${MM3_HYPERKITTY_API_KEY}
+      - MAILMAN_REST_PASSWORD=${MM3_MAILMAN_REST_PASSWORD}
+      - SERVE_FROM_DOMAIN=${DOMAIN}
+      - DJANGO_ALLOWED_HOSTS=${MM3_DJANGO_ALLOWED_HOSTS}
+      - DJANGO_RANDOM_SECRET_KEY=${MM3_DJANGO_RANDOM_SECRET_KEY}
+    # ports:
+      # -8000:8000" # HTTP
+      # -8080:8080" # uwsgi
+    extra_hosts:
+       # - ${MM3_SMTP_HOST}:${MM3_SMTP_IP}
+       # - ${MM3_SMTP_HOST}:${EXIM_INT_MAILOUT_IP}
+       - postgres-db:${MM3_POSTGRES_IP}
+    labels:
+       - "traefik.enable=true"
+       # - traefik.http.routers.mailman-web.rule=Host(`mailman.unswolke.de`) ||  Host(`mail.unswolke.de` || Host(`mailman-web.datilo.de`))
+       # - traefik.http.routers.mailman-web.rule=Host(`mailman-web.datilo.de` , `mailman.unswolke.de` , `mail.unswolke.de`)
+       - traefik.http.routers.mailman-web.rule=HostRegexp(`mail(man)?(-web)?.(datilo|unswolke).de`)
+       #  - traefik.http.routers.mailman-web.rule=Host(`mailman.unswolke.de`) || Host(`m4-mm3.${DOMAIN}.de`) ||  Host(`mail.unswolke.de`)
+       - "traefik.http.middlewares.mailman-web-tls.replacepathregex.regex=^/mailman3/(.*)"
+       - "traefik.http.middlewares.mailman-web-tls.replacepathregex.replacement=/$${1}"
+       # - "traefik.http.routers.mailman-web.middlewares=mailman-web-stripprefix@file"
+       # - "traefik.http.routers.mailman-web.tls=true"
+       # - "traefik.http.routers.mailman-web.entrypoints=websecure"
+       - "traefik.docker.network=traefik"
+       - traefik.port=8000
+       - traefik.backend=mailman-web
+    logging:
+      driver: syslog
+      options:
+        tag: "mailman-web"
     networks:
-      default:
-        ipv4_address: 172.168.123.30
+      services:
+        ipv4_address: ${MM3_WEB_IP}
+      traefik:
+        ipv4_address: ${MM3_TRAEFIK_IP}
+        aliases:
+           - mailman-web
+    restart: unless-stopped
+    
+  mailserver:
+    image: stalwartlabs/stalwart:latest
+    container_name: mailserver
+    restart: unless-stopped
+    hostname: mail.${DOMAIN}
+    networks:
+      traefik:
+        ipv4_address: ${STALWART_IP}
     links:
-    - mailman-core:mailman-core
+      - mailman-core:mailman-core
     volumes:
-      - ./stalwart.toml:/opt/stalwart-mail/etc/config.toml
-      - stalwart:/opt/stalwart-mail
-    container_name: stalwart-mail
-    image: 'stalwartlabs/mail-server:latest'
+      - /etc/localtime:/etc/localtime:ro
+      - /data/${DOMAIN}/mailserver:/opt/stalwart
+      - /data/mailverteil.de/traefik/certs/dump/:/data/certs:ro
+    labels:
+      - traefik.enable=true
 
-  database:
-    environment:
-    - POSTGRES_DB=mailmandb
-    - POSTGRES_USER=mailman
-    - POSTGRES_PASSWORD=mailmanpass
-    image: postgres:12-alpine
-    networks:
-      default:
-        ipv4_address: 172.168.123.40
+      - traefik.http.routers.mailserver.rule=Host( `mail.${DOMAIN}`) || 
+         Host( `autoconfig.${DOMAIN}`) ||
+         Host( `mta-sts.${DOMAIN}`) ||
+         Host( `autodiscover.${DOMAIN}`) 
+
+      - traefik.http.routers.mailserver.entrypoints=websecure
+      - traefik.http.routers.mailserver.service=mailserver
+      - traefik.http.services.mailserver.loadbalancer.server.port=8080
+
+      - traefik.tcp.routers.smtp.rule=HostSNI(`*`)
+      - traefik.tcp.routers.smtp.entrypoints=smtp
+      - traefik.tcp.routers.smtp.service=smtp
+      - traefik.tcp.services.smtp.loadbalancer.server.port=25
+      - traefik.tcp.services.smtp.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.jmap.rule=HostSNI(`*`)
+      - traefik.tcp.routers.jmap.tls.passthrough=true
+      - traefik.tcp.routers.jmap.entrypoints=websecure
+      - traefik.tcp.routers.jmap.service=jmap
+      - traefik.tcp.services.jmap.loadbalancer.server.port=443
+      - traefik.tcp.services.jmap.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.smtps.rule=HostSNI(`*`)
+      - traefik.tcp.routers.smtps.tls.passthrough=true
+      - traefik.tcp.routers.smtps.entrypoints=smtps
+      - traefik.tcp.routers.smtps.service=smtps
+      - traefik.tcp.services.smtps.loadbalancer.server.port=465
+      - traefik.tcp.services.smtps.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.imaps.rule=HostSNI(`*`)
+      - traefik.tcp.routers.imaps.tls.passthrough=true
+      - traefik.tcp.routers.imaps.entrypoints=imaps
+      - traefik.tcp.routers.imaps.service=imaps
+      - traefik.tcp.services.imaps.loadbalancer.server.port=993
+      - traefik.tcp.services.imaps.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.submission.rule=HostSNI(`*`)
+      - traefik.tcp.routers.submission.entrypoints=submission
+      - traefik.tcp.routers.submission.service=submission
+      - traefik.tcp.services.submission.loadbalancer.server.port=587
+      - traefik.tcp.services.submission.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.imap.rule=HostSNI(`*`)
+      - traefik.tcp.routers.imap.entrypoints=imap
+      - traefik.tcp.routers.imap.service=imap
+      - traefik.tcp.services.imap.loadbalancer.server.port=143
+      - traefik.tcp.services.imap.loadbalancer.proxyProtocol.version=2
+
+      - traefik.tcp.routers.sieve.rule=HostSNI(`*`)
+      - traefik.tcp.routers.sieve.tls.passthrough=true
+      - traefik.tcp.routers.sieve.entrypoints=sieve
+      - traefik.tcp.routers.sieve.service=sieve
+      - traefik.tcp.services.sieve.loadbalancer.server.port=4190
+      - traefik.tcp.services.sieve.loadbalancer.proxyProtocol.version=2
+      
+  
+  mm3-db:
+    # image: tiredofit/postgres:16-3.2.11
+    image: tiredofit/postgres:17-latest
+    
+    shm_size: 512MB
+    container_name: mm3-db
+    hostname: mm3-db
     volumes:
-    - postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready --dbname mailmandb --username mailman"]
-      interval: 1s
-      timeout: 1s
-      retries: 20
+      - /data/faudin/mm3/db/data:/var/lib/postgresql/data
+      - /data/faudin/mm3/db/log:/logs
+    environment:
+      - DEBUG_MODE=FALSE
+        # - ZABBIX_AGENT_TYPE=classic
+      - CONTAINER_ENABLE_MONITORING=FALSE
+      - TIMEZONE=Europe/Berlin
+      #- POSTGRES_DB=database
+      #- POSTGRES_USER=user
+      - SMTP_DEBUG=0
+      # - SMTP_HOST=mail
+      - LISTEN_PORT=5432
+      - LOG_TYPE=CONSOLE
+      - MAX_CONNECTIONS=1000
+      - SMTP_HOST=m4.${DOMAIN}
+      - SMTP_DOMAIN=${DOMAIN}
+      - SMTP_AUTHENTICATION=LOGIN
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_PORT=2587
+      - SMTP_MAILDOMAIN=${DOMAIN}.de
+      - SMTP_SECURE_TYPE=tls
+      - SERVER_NAME=mm3-db
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${NCT_DB_NAME}
+      - DB_USER=${NCT_DB_USER}
+      - DB_PASS=${NCT_DB_PASS}
+      - SUPERUSER_PASS=${POSTGRES_PASSWORD}
+      - DEBUG_MODE=false
+      - ZABBIX_SERVER_ACTIVE=zabbix-server
+      - ZABBIX_HOSTNAME=mm3-db.${DOMAIN}.de
+    # ports:
+      #  - "5432:5432"
+    networks:
+      services:
+        ipv4_address: ${MM3DB_IP}
+    restart: always
+
