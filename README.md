@@ -27,84 +27,22 @@ You will need
 a working [docker](https://docs.docker.com) environment,
 and [docker compose](https://docs.docker.com/compose/).
 
+
 * Clone the repository, and submodules
 
+### original was. 
 ```
 git clone --recurse-submodules https://github.com/ewdurbin/stalwart-mailman.git
 ```
+With the current git, it's all different.
+You'll need to 
+- startup stalwart first, set up manually, get it working
+- startup mailman db, get it working
+- startup mailman-core, get it working
+- startup postorious, get it working.
+- test whether all works together.
 
-* Change directory into the repo
-
-```
-cd stalwart-mailman
-```
-
-* Start the services
-
-```
-docker compose up
-```
-
-* Inititialize Stalwart
-
-This will:
-  - Create an `example.com` domain in Stalwart's Directory
-  - Create a `postmaster@example.com` account in Stalwart's Directory
-  - Set a password `password` for the `root@example.com` account
-  - Create a `user@example.com` account in Stalwart's Directory
-  - Set a password `password` for the `user@example.com` account
-  - Remove rate limits for demonstration
-  - Reload Stalwart Mail Server's configuration
-
-```
-docker compose exec mailman-web ./init-stalwart.sh
-```
-
-* Load Fixtures
-
-This will setup:
-  - A superuser with a confirmed email address
-  - A domain `example.com` for lists to be created in
-
-In another terminal:
-
-```
-docker compose exec mailman-web python manage.py loaddata fixtures.json
-```
-
-* Open the Mailman UI and login
-  * Username: `root`
-  * Password: `password`
-
-```
-open http://localhost:8000/accounts/login/
-```
-
-* Initialize Mailman Core
-
-This will setup:
-  - A domain in Mailman Core to match the fixture
-
-```
-docker compose exec mailman-web ./init-mailman-core.sh
-```
-
-
-* Create a list
-
-```
-open http://localhost:8000/mailman3/lists/new/
-```
-
-* Open Stalwart UI and login
-  * Username: `admin`
-  * Password: `password`
-
-```
-open http://localhost:8081
-```
-
-* Observe that
-  * The necessary domains were created <http://localhost:8081/manage/directory/domains>
-  * The necessary account and aliases were created <http://localhost:8081/manage/directory/accounts>
-  * The necessary next-hop was configured <http://localhost:8081/settings/smtp-out-routing/edit>
+## you'll need to edit the following files:
+.env
+stalwart.cfg (probably you'll move that to another directory)
+mailman-extra.cfg (probably you'll move that to another directory and mount it from there, like /data/${DOMAIN}/mm3/core/)

@@ -1,0 +1,47 @@
+### this needs to be added to your stalwart toml
+
+[server]
+... hostname 
+allowed-ip = { "172.168.123.1", "172.168.21.0/24" }
+
+[session.ehlo]
+require = true
+reject-non-fqdn = [
+  { if = "remote_ip == '172.168.123.1'", then = false },
+  { if = "remote_ip == '172.168.123.10'", then = false },
+  { if = "local_port == 25", then = true },
+  { else = false }
+]
+
+[session.hook."mailman"]
+enable = "true"
+url = "http://mailman-core:8001/3.1/plugins/mailman_stalwart/hook"
+stages = ["rcpt", "data"]
+allow-invalid-certs = false
+
+[session.hook."mailman".options]
+tempfail-on-error = true
+max-response-size = 52428800
+
+[session.hook."mailman".auth]
+username = "restadmin"
+secret = "restpass"
+
+[authentication.fallback-admin]
+user = "admin"
+secret = should be already there  # "password"
+
+[remote."mailman"]
+address = "mailman-core"
+port = 8024
+protocol = "lmtp"
+[remote."mailman".tls]
+implicit = false
+allow-invalid-certs = false
+
+## debatable / maybe restrict this to lmtp
+[queue.outbound.tls]
+starttls = "optional"
+
+#
+# ...

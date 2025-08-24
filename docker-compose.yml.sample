@@ -1,8 +1,13 @@
-volumes:
-  mailman-core:
-  mailman-web:
-  stalwart:
-  postgres:
+# this will allow local settings
+include:
+  - path: ../config/docker-compose.yml
+
+
+#volumes:
+#  mailman-core:
+#  mailman-web:
+#  stalwart:
+#  postgres:
 
 networks:
   traefik:
@@ -32,7 +37,7 @@ services:
       - DATABASE_URL=postgresql://mailman:mailmanpass@database/mailmandb
       - DATABASE_TYPE=postgres
       - DATABASE_CLASS=mailman.database.postgresql.PostgreSQLDatabase
-      - SECRET_KEY=ksjdbaksdba
+      - SECRET_KEY=${MM3_SECRET_KEY}
       - HYPERKITTY_API_KEY=${MM3_HYPERKITTY_API_KEY}
     #ports:
     #- "127.0.0.1:8001:8001" # API
