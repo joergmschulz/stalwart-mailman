@@ -36,6 +36,12 @@ git clone --recurse-submodules https://github.com/ewdurbin/stalwart-mailman.git
 ```
 With the current git, it's all different.
 You'll need to 
+
+- git clone 
+cd mai
+git pull
+TAG_NS=joergmschulz CURRENT_PLATFORM=linux/arm64/v8 BUILD_ROLLING=1 ./build.sh 
+
 - startup stalwart first, set up manually, get it working
 - startup mailman db, get it working
 - startup mailman-core, get it working
